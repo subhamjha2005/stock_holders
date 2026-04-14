@@ -19,7 +19,7 @@ app.layout = html.Div([
     ),
 
     html.Div([
-        html.Label("Enter Ticker Symbol:", style={'color': 'black'}),
+        html.Label("Enter Ticker Symbol:", style={'color': 'white'}),
         dcc.Input(
             id='ticker',
             value='AAPL',
