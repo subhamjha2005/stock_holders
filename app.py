@@ -26,6 +26,8 @@ app.layout = html.Div([
             type='text',
             style={'backgroundColor': '#222', 'color': 'white'}
         ),
+        html.Br(),
+        html.Br(),
 
         html.Label("Start Date:", style={'color': 'white'}),
         dcc.DatePickerSingle(
