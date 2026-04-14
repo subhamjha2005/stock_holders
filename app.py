@@ -1,145 +1,139 @@
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
+
 import yfinance as yf
 import plotly.express as px
 import pandas as pd
 import datetime
 
+# Initialize app
 app = dash.Dash(__name__)
 app.title = "📈 Stock & Crypto Analytics Dashboard"
 
-# ------------------ STYLES ------------------
-CARD_STYLE = {
-    "background": "rgba(255,255,255,0.05)",
-    "backdropFilter": "blur(10px)",
-    "borderRadius": "15px",
-    "padding": "15px",
-    "boxShadow": "0 4px 30px rgba(0,0,0,0.3)"
-}
-
-INPUT_STYLE = {
-    "width": "100%",
-    "padding": "10px",
-    "borderRadius": "8px",
-    "border": "1px solid #333",
-    "backgroundColor": "#111",
-    "color": "white"
-}
-
-# ------------------ LAYOUT ------------------
+# Layout
 app.layout = html.Div([
-
-    # Header
     html.H1(
         "📈 Stock & Crypto Analytics Dashboard",
-        style={
-            "textAlign": "center",
-            "color": "white",
-            "marginBottom": "20px",
-            "fontWeight": "600"
-        }
+        style={'textAlign': 'center', 'color': 'white'}
     ),
 
-    # Controls (Premium Bar)
     html.Div([
-        html.Div([
-            html.Label("Ticker", style={"color": "#aaa"}),
-            dcc.Input(id="ticker", value="AAPL", type="text", style=INPUT_STYLE)
-        ], style={"flex": 1}),
+        html.Label("Enter Ticker Symbol:", style={'color': 'white'}),
+        dcc.Input(
+            id='ticker',
+            value='AAPL',
+            type='text',
+            style={'backgroundColor': '#222', 'color': 'white'}
+        ),
 
-        html.Div([
-            html.Label("Start Date", style={"color": "#aaa"}),
-            dcc.DatePickerSingle(id="start", date="2023-01-01")
-        ], style={"flex": 1}),
+        html.Label("Start Date:", style={'color': 'white'}),
+        dcc.DatePickerSingle(
+            id='start',
+            date='2023-01-01'
+        ),
 
-        html.Div([
-            html.Label("End Date", style={"color": "#aaa"}),
-            dcc.DatePickerSingle(id="end", date=pd.Timestamp.today())
-        ], style={"flex": 1})
-
+        html.Label("End Date:", style={'color': 'white'}),
+        dcc.DatePickerSingle(
+            id='end',
+            date=pd.Timestamp.today()
+        )
     ], style={
-        "display": "flex",
-        "gap": "20px",
-        "marginBottom": "25px",
-        **CARD_STYLE
+        'display': 'grid',
+        'gridTemplateColumns': '1fr 1fr 1fr',
+        'gap': '10px',
+        'color': 'white'
     }),
 
-    # Charts Grid
-    html.Div([
+    html.Br(),
 
-        html.Div([dcc.Graph(id="price-chart")], style=CARD_STYLE),
-        html.Div([dcc.Graph(id="volume-chart")], style=CARD_STYLE),
-
-        html.Div([dcc.Graph(id="returns-chart")], style=CARD_STYLE),
-        html.Div([dcc.Graph(id="heatmap-chart")], style=CARD_STYLE)
-
-    ], style={
-        "display": "grid",
-        "gridTemplateColumns": "1fr 1fr",
-        "gap": "20px"
-    })
+    dcc.Graph(id='price-chart'),
+    dcc.Graph(id='volume-chart'),
+    dcc.Graph(id='returns-chart'),
+    dcc.Graph(id='heatmap-chart')
 
 ], style={
-    "background": "linear-gradient(135deg, #0a0a0a, #111)",
-    "padding": "30px",
-    "minHeight": "100vh",
-    "fontFamily": "Segoe UI"
+    'backgroundColor': '#000',
+    'padding': '20px',
+    'minHeight': '100vh'
 })
 
-
-# ------------------ CALLBACK ------------------
+# Callback
 @app.callback(
     [
-        Output("price-chart", "figure"),
-        Output("volume-chart", "figure"),
-        Output("returns-chart", "figure"),
-        Output("heatmap-chart", "figure"),
+        Output('price-chart', 'figure'),
+        Output('volume-chart', 'figure'),
+        Output('returns-chart', 'figure'),
+        Output('heatmap-chart', 'figure')
     ],
     [
-        Input("ticker", "value"),
-        Input("start", "date"),
-        Input("end", "date"),
-    ],
+        Input('ticker', 'value'),
+        Input('start', 'date'),
+        Input('end', 'date')
+    ]
 )
 def update_dashboard(ticker, start, end):
-    try:
-        start = pd.to_datetime(start).date() if start else datetime.date(2023, 1, 1)
-        end = pd.to_datetime(end).date() if end else datetime.date.today()
 
-        data = yf.download(ticker, start=start, end=end)
+    start = pd.to_datetime(start).date() if start else datetime.date(2023, 1, 1)
+    end = pd.to_datetime(end).date() if end else datetime.date.today()
 
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
+    data = yf.download(ticker, start=start, end=end, auto_adjust=False)
 
-        if data is None or data.empty or len(data) < 2:
-            fig = px.scatter(title="No data available", template="plotly_dark")
-            return fig, fig, fig, fig
-
-        price_col = "Adj Close" if "Adj Close" in data.columns else "Close"
-
-        data["Daily Return"] = data[price_col].pct_change()
-
-        fig1 = px.line(data, x=data.index, y=price_col, template="plotly_dark")
-        fig2 = px.bar(data, x=data.index, y="Volume", template="plotly_dark")
-        fig3 = px.histogram(data, x="Daily Return", template="plotly_dark")
-
-        cols = [c for c in ['Open','High','Low','Close','Adj Close','Volume'] if c in data.columns]
-
-        if len(cols) > 1:
-            corr = data[cols].corr()
-            fig4 = px.imshow(corr, text_auto=True, template="plotly_dark")
-        else:
-            fig4 = px.scatter(title="Heatmap unavailable", template="plotly_dark")
-
-        return fig1, fig2, fig3, fig4
-
-    except Exception as e:
-        print("ERROR:", e)
-        fig = px.scatter(title=f"Error: {str(e)}", template="plotly_dark")
+    # Handle empty data
+    if data.empty:
+        fig = px.scatter(title="No data available", template="plotly_dark")
         return fig, fig, fig, fig
 
+    # Flatten multi-index if present
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = [col[0] for col in data.columns]
 
-# ------------------ RUN ------------------
+    # Daily returns
+    data['Daily Return'] = data['Adj Close'].pct_change()
+
+    # Price chart
+    fig1 = px.line(
+        data,
+        x=data.index,
+        y='Adj Close',
+        title=f'{ticker} Closing Price',
+        template='plotly_dark'
+    )
+
+    # Volume chart
+    fig2 = px.bar(
+        data,
+        x=data.index,
+        y='Volume',
+        title='Volume Traded',
+        template='plotly_dark'
+    )
+
+    # Returns histogram
+    fig3 = px.histogram(
+        data,
+        x='Daily Return',
+        nbins=50,
+        title='Return Distribution',
+        template='plotly_dark'
+    )
+
+    # Heatmap
+    corr_data = data[
+        ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Daily Return']
+    ].corr()
+
+    fig4 = px.imshow(
+        corr_data,
+        text_auto=True,
+        color_continuous_scale='portland',
+        title='Feature Correlation Heatmap',
+        template='plotly_dark'
+    )
+
+    return fig1, fig2, fig3, fig4
+
+
+# Run app
 if __name__ == "__main__":
-    app.run(debug=True, port=8051)
+    app.run(debug=True, port = 8051)
