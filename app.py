@@ -19,12 +19,12 @@ app.layout = html.Div([
     ),
 
     html.Div([
-        html.Label("Enter Ticker Symbol:", style={'color': 'white'}),
+        html.Label("Enter Ticker Symbol:", style={'color': 'green'}),
         dcc.Input(
             id='ticker',
             value='AAPL',
             type='text',
-            style={'backgroundColor': '#222', 'color': 'white'}
+            style={'backgroundColor': '#222', 'color': 'blue'}
         ),
 
         html.Label("Start Date:", style={'color': 'black'}),
@@ -42,7 +42,7 @@ app.layout = html.Div([
         'display': 'grid',
         'gridTemplateColumns': '1fr 1fr 1fr',
         'gap': '10px',
-        'color': 'white'
+        'color': 'red'
     }),
 
     html.Br(),
@@ -53,7 +53,7 @@ app.layout = html.Div([
     dcc.Graph(id='heatmap-chart')
 
 ], style={
-    'backgroundColor': '#000',
+    'backgroundColor': 'yellow',
     'padding': '20px',
     'minHeight': '100vh'
 })
