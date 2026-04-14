@@ -3,41 +3,47 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 import yfinance as yf
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
 import datetime
 
 app = dash.Dash(__name__)
 app.title = "📈 Stock & Crypto Analytics Dashboard"
 
-# Global dark theme styles
+# ----------- Layout -----------
 app.layout = html.Div([
     html.H1("📈 Stock & Crypto Analytics Dashboard",
             style={'textAlign': 'center', 'color': 'white'}),
 
     html.Div([
-        html.Label("Enter Ticker Symbol:", style={'color': 'white'}),
-        dcc.Input(id='ticker', value='AAPL', type='text', style={'backgroundColor': '#222', 'color': 'white'}),
+        html.Div([
+            html.Label("Ticker (comma separated):"),
+            dcc.Input(id='ticker', value='AAPL,MSFT,GOOG', type='text')
+        ]),
 
-        html.Label("Start Date:", style={'color': 'white'}),
-        dcc.DatePickerSingle(id='start', date='2023-01-01'),
+        html.Div([
+            html.Label("Start Date:"),
+            dcc.DatePickerSingle(id='start', date='2023-01-01')
+        ]),
 
-        html.Label("End Date:", style={'color': 'white'}),
-        dcc.DatePickerSingle(id='end', date=pd.Timestamp.today())
-    ], style={
-        'display': 'grid',
-        'grid-template-columns': '1fr 1fr 1fr',
-        'gap': '10px',
-        'color': 'white'
-    }),
+        html.Div([
+            html.Label("End Date:"),
+            dcc.DatePickerSingle(id='end', date=pd.Timestamp.today())
+        ])
+    ], style={'display': 'flex', 'gap': '20px', 'color': 'white'}),
 
     html.Br(),
 
-    dcc.Graph(id='price-chart'),
-    dcc.Graph(id='volume-chart'),
-    dcc.Graph(id='returns-chart'),
-    dcc.Graph(id='heatmap-chart')
+    dcc.Loading([
+        dcc.Graph(id='price-chart'),
+        dcc.Graph(id='volume-chart'),
+        dcc.Graph(id='returns-chart'),
+        dcc.Graph(id='heatmap-chart')
+    ])
 ], style={'backgroundColor': '#000', 'padding': '20px', 'minHeight': '100vh'})
 
+
+# ----------- Callback -----------
 @app.callback(
     [Output('price-chart', 'figure'),
      Output('volume-chart', 'figure'),
@@ -47,45 +53,65 @@ app.layout = html.Div([
      Input('start', 'date'),
      Input('end', 'date')]
 )
-def update_dashboard(ticker, start, end):
-    start = pd.to_datetime(start).date() if start else datetime.date(2023, 1, 1)
-    end = pd.to_datetime(end).date() if end else datetime.date.today()
+def update_dashboard(tickers, start, end):
+    start = pd.to_datetime(start).date()
+    end = pd.to_datetime(end).date()
 
-    data = yf.download(ticker, start=start, end=end, auto_adjust=False)
+    ticker_list = [t.strip().upper() for t in tickers.split(",")]
 
-    if data.empty:
-        # Handle invalid ticker or no data
-        fig = px.scatter(title="No data available", template="plotly_dark")
-        return [fig, fig, fig, fig]
+    try:
+        data = yf.download(ticker_list, start=start, end=end)
 
-    # Flatten multi-index columns if any
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = [col[0] for col in data.columns]
+        if data.empty:
+            raise ValueError("No data found")
 
-    # Compute daily returns
-    data['Daily Return'] = data['Adj Close'].pct_change()
+        # ----------- Multi-stock Adj Close -----------
+        close = data['Adj Close']
 
-    # --- Chart 1: Price Line ---
-    fig1 = px.line(data, x=data.index, y='Adj Close', title=f'{ticker} Closing Price', template='plotly_dark')
+        # ----------- Moving Averages for first stock -----------
+        main_stock = ticker_list[0]
+        df_main = close[main_stock].to_frame(name='Adj Close')
+        df_main['MA20'] = df_main['Adj Close'].rolling(20).mean()
+        df_main['MA50'] = df_main['Adj Close'].rolling(50).mean()
 
-    # --- Chart 2: Volume ---
-    fig2 = px.bar(data, x=data.index, y='Volume', title='Volume Traded', template='plotly_dark')
+        # ----------- Price Chart -----------
+        fig1 = go.Figure()
+        fig1.add_trace(go.Scatter(x=df_main.index, y=df_main['Adj Close'], name='Price'))
+        fig1.add_trace(go.Scatter(x=df_main.index, y=df_main['MA20'], name='MA20'))
+        fig1.add_trace(go.Scatter(x=df_main.index, y=df_main['MA50'], name='MA50'))
 
-    # --- Chart 3: Daily Returns Histogram ---
-    fig3 = px.histogram(data, x='Daily Return', nbins=50, title='Return Distribution', template='plotly_dark')
+        fig1.update_layout(title=f"{main_stock} Price with Moving Averages",
+                           template='plotly_dark')
 
-    # --- Chart 4: Heatmap (Correlation Matrix) ---
-    corr_data = data[['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Daily Return']].corr()
-    fig4 = px.imshow(
-        corr_data,
-        text_auto=True,
-        color_continuous_scale='portland',
-        title='Feature Correlation Heatmap',
-        template='plotly_dark'
-    )
+        # ----------- Volume -----------
+        volume = data['Volume'][main_stock]
+        fig2 = px.bar(x=volume.index, y=volume,
+                      title=f"{main_stock} Volume",
+                      template='plotly_dark')
 
-    return fig1, fig2, fig3, fig4
+        # ----------- Returns Line Chart -----------
+        returns = close.pct_change()
+        fig3 = px.line(returns, title="Daily Returns Comparison",
+                       template='plotly_dark')
+
+        # ----------- Heatmap (NEW - Multi Stock Correlation) -----------
+        corr = returns.corr()
+
+        fig4 = px.imshow(
+            corr,
+            text_auto=True,
+            color_continuous_scale='RdBu',
+            title='Stock Correlation Heatmap',
+            template='plotly_dark'
+        )
+
+        return fig1, fig2, fig3, fig4
+
+    except Exception as e:
+        fig = px.scatter(title=f"Error: {str(e)}", template="plotly_dark")
+        return fig, fig, fig, fig
 
 
+# ----------- Run App -----------
 if __name__ == '__main__':
     app.run(debug=True, port=8051)
