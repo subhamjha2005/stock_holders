@@ -34,6 +34,8 @@ app.layout = html.Div([
             id='start',
             date='2023-01-01'
         ),
+        html.Br(),
+        html.Br(),
 
         html.Label("End Date:", style={'color': 'white'}),
         dcc.DatePickerSingle(
