@@ -19,21 +19,21 @@ app.layout = html.Div([
     ),
 
     html.Div([
-        html.Label("Enter Ticker Symbol:", style={'color': 'green'}),
+        html.Label("Enter Ticker Symbol:", style={'color': 'black'}),
         dcc.Input(
             id='ticker',
             value='AAPL',
             type='text',
-            style={'backgroundColor': '#222', 'color': 'blue'}
+            style={'backgroundColor': '#222', 'color': 'white'}
         ),
 
-        html.Label("Start Date:", style={'color': 'black'}),
+        html.Label("Start Date:", style={'color': 'white'}),
         dcc.DatePickerSingle(
             id='start',
             date='2023-01-01'
         ),
 
-        html.Label("End Date:", style={'color': 'black'}),
+        html.Label("End Date:", style={'color': 'white'}),
         dcc.DatePickerSingle(
             id='end',
             date=pd.Timestamp.today()
@@ -42,7 +42,7 @@ app.layout = html.Div([
         'display': 'grid',
         'gridTemplateColumns': '1fr 1fr 1fr',
         'gap': '10px',
-        'color': 'red'
+        'color': 'black'
     }),
 
     html.Br(),
@@ -53,7 +53,7 @@ app.layout = html.Div([
     dcc.Graph(id='heatmap-chart')
 
 ], style={
-    'backgroundColor': 'yellow',
+    'backgroundColor': 'black',
     'padding': '20px',
     'minHeight': '100vh'
 })
