@@ -27,13 +27,13 @@ app.layout = html.Div([
             style={'backgroundColor': '#222', 'color': 'white'}
         ),
 
-        html.Label("Start Date:", style={'color': 'white'}),
+        html.Label("Start Date:", style={'color': 'black'}),
         dcc.DatePickerSingle(
             id='start',
             date='2023-01-01'
         ),
 
-        html.Label("End Date:", style={'color': 'white'}),
+        html.Label("End Date:", style={'color': 'black'}),
         dcc.DatePickerSingle(
             id='end',
             date=pd.Timestamp.today()
